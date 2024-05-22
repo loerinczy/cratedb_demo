@@ -1,17 +1,15 @@
-from utils import (
+from utils.helper import (
     get_create_table_stmt,
     get_insert_stmt,
     load_snapshot,
-    Tables,
-    Schemas,
     dict2tuple,
     tuple2dict,
     get_connection,
     get_batches,
-    get_col,
     chunk_html,
 )
-from ai_client import AIClient
+from utils.catalog import Tables, Schemas
+from utils.ai_client import AIClient
 
 CHUNK_SIZE = 600
 CHUNK_OVERLAP = 60
@@ -36,6 +34,7 @@ headers_to_split_on = [
 insert_records = []
 
 num_records = len(stories_text)
+chunk_idx = 0
 
 for idx, text_row in enumerate(stories_text):
     html = text_row["text"]
@@ -53,9 +52,13 @@ for idx, text_row in enumerate(stories_text):
     for chunk, embedding in zip(chunks, embeddings):
         insert_row = text_row.copy()
         insert_row["chunk"] = chunk
+        insert_row["chunk_idx"] = chunk_idx
         insert_row["embedding"] = embedding
         insert_records.append(insert_row)
+        chunk_idx += 1
     print(f"Chunked and embedded the {idx + 1}. story out of {num_records}.", end="\r")
+
+print("Finished the chunking and the embedding of the stories.")
 
 insert_records = dict2tuple(insert_records, Schemas.stories_chunk)
 create_table_stmt = get_create_table_stmt(Tables.stories_chunk, Schemas.stories_chunk)

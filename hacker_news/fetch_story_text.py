@@ -4,9 +4,11 @@ from utils import (
     get_connection,
     get_create_table_stmt,
     get_insert_stmt,
-    generate_data_tuples,
-    map_to_schema,
+    get_batches,
     get_col,
+    commit_snapshot,
+    load_snapshot,
+    map_to_schema,
     Tables,
     Schemas,
 )
@@ -22,33 +24,37 @@ with get_connection() as conn:
 
 insert_records = []
 failed_urls = {}
-for story in stories:
+for idx, story in enumerate(stories):
     try:
-        print(story)
-        url = story["url"]
-        resp = requests.get(url)
-    except requests.ConnectionError:
-        failed_urls[url] = "connection_error"
+        url = get_col(story, Schemas.stories, "url")
+        print(f"Fetching {idx}. url", end="\r")
+        resp = requests.get(url, timeout=5)
+    except requests.exceptions.RequestException as e:
+        failed_urls[url] = str(e)
         continue
-    if resp.status_code == requests.status_codes.ok:
-        record = []
-        record["text"] = resp.text
+    if resp.status_code == requests.codes.ok:
+        record = map_to_schema(story, Schemas.stories, Schemas.stories_text)
+        record.append(resp.text)
         insert_records.append(record)
     else:
-        failed_urls[url] = resp.status_code
+        failed_urls[url] = f"{resp.status_code} {resp.reason}"
 
+# create snapshot in case of downstream failure
+commit_snapshot(insert_records, "stories_text")
 print(f"Succesfully fetched {len(insert_records)} out of {len(stories)} pages.")
-print(f"Error codes: \n {json.dumps(failed_urls, indent=4)}")
+# print(f"Error codes: \n {json.dumps(failed_urls, indent=4)}")
+# create_table_stmt = get_create_table_stmt(Tables.stories_text, Schemas.stories_text)
+# insert_stmt = get_insert_stmt(Tables.stories_text, Schemas.stories_text)
+# insert_records = load_snapshot("stories_text")
 
-create_table_stmt = get_create_table_stmt(Tables.stories_text, Schemas.stories_text)
-insert_tuple = generate_data_tuples(insert_records, Schemas.stories_text)
-insert_stmt = get_insert_stmt(Tables.stories_text, Schemas.stories_text)
+# with get_connection() as conn:
+#     cursor = conn.cursor()
 
-with get_connection() as conn:
-    cursor = conn.cursor()
+#     # create target table
+#     # cursor.execute(create_table_stmt)
 
-    # create target table
-    cursor.execute(create_table_stmt)
-
-    # insert data
-    cursor.executemany(insert_stmt, insert_tuple)
+#     # insert data in batches
+#     batches = get_batches(insert_records, 3)
+#     for idx, batch in enumerate(batches):
+#         cursor.executemany(insert_stmt, batch)
+#         print(f"Inserted the {idx+1}. batch.", end="\r")

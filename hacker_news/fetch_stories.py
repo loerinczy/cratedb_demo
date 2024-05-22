@@ -1,6 +1,19 @@
 import json
 from hackernews_api import HackerNewsAPI
 from pathlib import Path
+import crate
+import json
+import os
+from utils import (
+    generate_data_tuples,
+    get_connection,
+    get_insert_stmt,
+    get_create_table_stmt,
+    by2author,
+    Tables,
+    Schemas,
+)
+
 
 # from concurrent.futures import ThreadPoolExecutor
 #     ids = range(SNAPSHOT_START_ID, SNAPSHOT_END_ID)
@@ -10,19 +23,24 @@ from pathlib import Path
 data_dir = Path(__file__).parents[1] / "data"
 
 hn_api = HackerNewsAPI()
-maxitem = hn_api.get_max_item_id()
-ITEM_MIN = 8000
-ITEM_MAX = 1500
-min_id = maxitem - ITEM_MIN
-max_id = maxitem - ITEM_MAX
-fetched_items = []
-for idx, item_id in enumerate(range(min_id, max_id)):
-    item = hn_api.fetch_item(item_id)
-    if idx % 100 == 0:
-        print("\ritem_id: " + str(idx), end="")
-    if item["type"] == "story":
-        fetched_items.append(item)
+stories = hn_api.fetch_stories(500)
 
-print("number of fetched items: " + str(len(fetched_items)))
+print("Number of fetched stories: " + str(len(stories)))
 with open(data_dir / "stories.json", "w") as fp:
-    json.dump(fetched_items, fp)
+    json.dump(stories, fp)
+
+for story in stories:
+    by2author(story)
+
+
+create_table_stmt = get_create_table_stmt(Tables.stories, Schemas.stories)
+insert_tuples = generate_data_tuples(stories, Schemas.stories)
+insert_stmt = get_insert_stmt(Tables.stories, Schemas.stories)
+
+with get_connection() as conn:
+    cursor = conn.cursor()
+    # create table
+    cursor.execute(create_table_stmt)
+
+    # insert into table
+    cursor.executemany(insert_stmt, insert_tuples)
