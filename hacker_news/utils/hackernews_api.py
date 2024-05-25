@@ -13,7 +13,7 @@ class HackerNewsAPI:
         response.raise_for_status()
         return response.json()
 
-    def fetch_stories(self, num_stories: int) -> dict:
+    def fetch_stories(self, num_stories: int) -> list:
         curr_item_id = self.get_max_item_id()
         stories = []
         num_fetched_stories = 0
@@ -28,6 +28,12 @@ class HackerNewsAPI:
             if num_fetched_stories == num_stories:
                 break
         return stories
+
+    def fetch_topstories(self) -> list:
+        url = f"{self._base_url}/{self._version}/topstories.json"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.json()
 
     def get_max_item_id(self):
         url = f"{self._base_url}/{self._version}/maxitem.json"

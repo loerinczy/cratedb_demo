@@ -1,6 +1,6 @@
 import json
 import requests
-from utils import (
+from utils.helper import (
     get_connection,
     get_create_table_stmt,
     get_insert_stmt,
@@ -9,9 +9,8 @@ from utils import (
     commit_snapshot,
     load_snapshot,
     map_to_schema,
-    Tables,
-    Schemas,
 )
+from utils.catalog import Tables, Schemas
 
 
 with get_connection() as conn:
