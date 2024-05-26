@@ -1,6 +1,9 @@
 .venv/*
+.sales_venv/*
 *.cpython*
 */data/*
-*/target/
+target/
 */dbt_packages/
 */logs/
+dbt.log
+.DS_Store

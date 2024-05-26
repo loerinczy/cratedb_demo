@@ -1,13 +1,6 @@
 from collections import OrderedDict
 
 
-class Tables:
-    stories = "bronze.raw"
-    stories_text = "hackernews.stories_text"
-    stories_chunk = "hackernews.stories_chunk"
-    test = "demo.test"
-
-
 class Schemas:
     stories = OrderedDict(
         [
@@ -51,15 +44,18 @@ class Schemas:
             ("embedding", "FLOAT_VECTOR(1536)"),
         ]
     )
-    test = OrderedDict(
-        [
-            ("author", "text"),
-            ("id", "integer"),
-            ("score", "integer"),
-            ("time", "bigint"),
-            ("title", "text"),
-            ("url", "text"),
-            ("chunk", "text"),
-            ("embedding", "FLOAT_VECTOR(1536)"),
-        ]
-    )
+
+
+class Table:
+    name: str
+    schema: OrderedDict
+
+    def __init__(self, name: str, schema: OrderedDict) -> None:
+        self.name = name
+        self.schema = schema
+
+
+class Tables:
+    stories = Table("hackernews.stories", Schemas.stories)
+    stories_text = Table("hackernews.stories_text", Schemas.stories_text)
+    stories_chunk = Table("hackernews.stories_chunk", Schemas.stories_chunk)

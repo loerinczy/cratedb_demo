@@ -6,13 +6,12 @@ from utils.helper import (
     tuple2dict,
     get_connection,
     get_batches,
-    chunk_html,
 )
 from utils.catalog import Tables, Schemas
 from utils.ai_client import AIClient
+from utils.indexing import chunk_html, HEADERS_TO_SPLIT_ON, CHUNK_SIZE, CHUNK_OVERLAP
 
-CHUNK_SIZE = 600
-CHUNK_OVERLAP = 60
+
 BATCH_SIZE = 20
 
 client = AIClient(
@@ -23,14 +22,7 @@ stories_text = load_snapshot("stories_text")
 stories_text = tuple2dict(stories_text, Schemas.stories_text)
 
 # TODO: experiment
-headers_to_split_on = [
-    ("h1", "Header 1"),
-    ("h2", "Header 2"),
-    ("h3", "Header 3"),
-    ("h4", "Header 4"),
-    ("h5", "Header 5"),
-    ("h6", "Header 6"),
-]
+
 insert_records = []
 
 num_records = len(stories_text)
@@ -42,7 +34,7 @@ for idx, text_row in enumerate(stories_text):
         html,
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
-        headers_to_split_on=headers_to_split_on,
+        headers_to_split_on=HEADERS_TO_SPLIT_ON,
     )
     # in case of chunking does not return sensible data
     if not chunks:

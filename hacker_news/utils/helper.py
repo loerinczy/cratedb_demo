@@ -3,13 +3,10 @@ import os
 from typing import Union
 from pathlib import Path
 import json
-from langchain_text_splitters import (
-    HTMLHeaderTextSplitter,
-    RecursiveCharacterTextSplitter,
-)
+
 import crate.client as client
 
-from .catalog import Tables
+from .catalog import Tables, Table
 
 
 def get_connection() -> Connection:
@@ -21,26 +18,30 @@ def get_connection() -> Connection:
     return connection
 
 
-def get_create_table_stmt(name: str, schema: dict[str, str]) -> str:
+def get_create_table_stmt(table: Table) -> str:
     schema_str = ", ".join(
-        [f"{column_name} {data_type}" for column_name, data_type in schema.items()]
+        [
+            f"{column_name} {data_type}"
+            for column_name, data_type in table.schema.items()
+        ]
     )
-    stmt = f"create table {name} ({schema_str})"
+    stmt = f"create table {table.name} ({schema_str})"
     return stmt
 
 
-def get_insert_stmt(name: str, schema: dict[str, str]) -> str:
-    schema_str = ", ".join(schema.keys())
-    values = ", ".join(["?"] * len(list(schema.keys())))
-    stmt = f"insert into {name} ({schema_str}) values ({values})"
+def get_insert_stmt(table: Table) -> str:
+    schema_str = ", ".join(table.schema.keys())
+    values = ", ".join(["?"] * len(list(table.schema.keys())))
+    stmt = f"insert into {table.name} ({schema_str}) values ({values})"
     return stmt
 
 
-def dict2tuple(data: list[dict], schema: dict[str, str]) -> list[list]:
+def dict2tuple(data: list[dict], table: Table) -> list[list]:
     output_data = []
     for record in data:
         output_record = [
-            record[column] if column in record else None for column in schema.keys()
+            record[column] if column in record else None
+            for column in table.schema.keys()
         ]
         output_data.append(output_record)
     return output_data
@@ -97,57 +98,17 @@ def load_snapshot(snapshot_name: str) -> list[dict]:
     return data
 
 
-def chunk_html(
-    html: str, chunk_size: int, chunk_overlap: int, headers_to_split_on: dict[str, str]
-):
-    # html = """<!DOCTYPE html>
-    #     <html>
-    #     <body>
-    #         <div>
-    #             <h1>Foo</h1>
-    #             <p>Some intro text about Foo.</p>
-    #             <div>
-    #                 <h2>Bar main section</h2>
-    #                 <p>Some intro text about Bar.</p>
-    #                 <h3>Bar subsection 1</h3>
-    #                 <p>Some text about the first subtopic of Bar.</p>
-    #                 <h3>Bar subsection 2</h3>
-    #                 <p>Some text about the second subtopic of Bar.</p>
-    #             </div>
-    #             <div>
-    #                 <h2>Baz</h2>
-    #                 <p>Some text about Baz</p>
-    #             </div>
-    #             <br>
-    #             <p>Some concluding text about Foo</p>
-    #         </div>
-    #     </body>
-    #     </html>"""
-    splitter = HTMLHeaderTextSplitter(headers_to_split_on)
-    try:
-        html_header_splits = splitter.split_text(html)
-    except ValueError:
-        return
-
-    chunk_size = 300
-    chunk_overlap = 30
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=chunk_size, chunk_overlap=chunk_overlap
-    )
-    chunks = text_splitter.split_documents(html_header_splits)
-    return chunks
-
-
-def fetch_top_k_chunks_embedding(embedding: list[float], top_k: int) -> list[str]:
+def insert_data(
+    data: list[dict], table: Table, create_table: bool = False, batch_size: int = 10
+) -> None:
+    if create_table:
+        create_table_stmt = get_create_table_stmt(table)
+    insert_records = dict2tuple(data, table)
+    insert_stmt = get_insert_stmt(table)
+    batches = get_batches(insert_records, batch_size)
     with get_connection() as conn:
         cursor = conn.cursor()
-
-        # fetch chunks
-        cursor.execute(
-            f"SELECT url, chunk FROM {Tables.stories_chunk} WHERE knn_match(embedding, {embedding}, {top_k}) ORDER BY _score DESC LIMIT {top_k}"
-        )
-        urls_chunks = cursor.fetchall()
-
-    urls, chunks = list(zip(*urls_chunks))
-
-    return urls, chunks
+        if create_table:
+            cursor.execute(create_table_stmt)
+        for batch in batches:
+            cursor.executemany(insert_stmt, batch)
