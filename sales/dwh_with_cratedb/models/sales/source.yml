@@ -1,0 +1,9 @@
+sources:
+  - name: sales
+    database: crate
+    schema: sales_dev
+    tables:
+      - name: purchases
+      - name: reviews
+      - name: offices
+      - name: distribution_hubs
