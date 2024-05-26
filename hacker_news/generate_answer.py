@@ -1,6 +1,6 @@
 import streamlit as st
 
-from utils.helper import fetch_top_k_chunks_embedding
+from utils.retrieval import fetch_top_k_chunks_embedding
 from utils.ai_client import AIClient
 
 if "client" not in st.session_state:
@@ -27,7 +27,7 @@ if run:
         context = f"Context: " + " ".join(doc for doc in chunks)
     else:
         context = "No context for this query."
-    system_prompt = f"Answer the question with the help of the provided context."
+    system_prompt = "Answer the question with the help of the provided context."
     generated_answer = st.session_state.client.generate_answer(
         system=system_prompt, context=context, prompt=question
     )

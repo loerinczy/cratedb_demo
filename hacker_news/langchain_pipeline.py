@@ -32,9 +32,12 @@ headers_to_split_on = [
 chunk_size = 300
 chunk_overlap = 30
 
-hn_api = HackerNewsAPI()
-story_ids = [40453882, 40448045]
-stories = [hn_api.fetch_item(story_id) for story_id in story_ids]
+# hn_api = HackerNewsAPI()
+story_ids = [40453882]
+hackernews_url = "https://hacker-news.firebaseio.com/v0/item/{}"
+stories = [
+    requests.get(hackernews_url.format(story_id), timeout=10) for story_id in story_ids
+]
 raw_htmls = [requests.get(story["url"], timeout=5).text for story in stories]
 html_splitter = HTMLHeaderTextSplitter(headers_to_split_on)
 html_header_splits_all = [html_splitter.split_text(html) for html in raw_htmls]
