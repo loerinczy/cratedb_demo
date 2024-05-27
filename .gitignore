@@ -4,6 +4,5 @@
 */data/*
 target/
 */dbt_packages/
-*/logs/
-dbt.log
+logs/
 .DS_Store
