@@ -7,13 +7,11 @@ from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import PromptTemplate
-from langchain.vectorstores import CrateDBVectorSearch, chroma
+from langchain.vectorstores import CrateDBVectorSearch
 from langchain.text_splitter import (
     HTMLHeaderTextSplitter,
     RecursiveCharacterTextSplitter,
 )
-
-from utils.hackernews_api import HackerNewsAPI
 
 
 pw = os.getenv("CRATEDB_PASSWORD")
