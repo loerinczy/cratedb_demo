@@ -1,3 +1,5 @@
+"""Auxiliary script to fetch, chunk, and embed certain articles."""
+
 import requests
 
 from utils.hackernews_api import HackerNewsAPI
