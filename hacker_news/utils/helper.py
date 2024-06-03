@@ -1,12 +1,14 @@
 from crate.client.connection import Connection
 import os
-from typing import Union
-from pathlib import Path
-import json
-
 import crate.client as client
+import requests
 
-from .catalog import Tables, Table
+from .catalog import Table
+from utils.hackernews_api import HackerNewsAPI
+from utils.helper import insert_data, get_create_table_stmt
+from utils.catalog import Tables
+from utils.ai_client import AIClient
+from utils.indexing import chunk_and_embed
 
 
 def get_connection() -> Connection:
@@ -47,55 +49,11 @@ def dict2tuple(data: list[dict], table: Table) -> list[list]:
     return output_data
 
 
-def tuple2dict(data: list[list], schema: dict[str, str]) -> list[dict]:
-    output_data = []
-    for record in data:
-        output_record = {key: value for key, value in zip(schema.keys(), record)}
-        output_data.append(output_record)
-    return output_data
-
-
-def map_to_schema(data: list, input_schema: dict, output_schema: dict) -> list:
-    output = []
-    for idx, input_col in enumerate(input_schema.keys()):
-        if input_col in output_schema:
-            output.append(data[idx])
-    return output
-
-
-def get_col(data: list, schema: dict, col: str):
-    idx = list(schema.keys()).index(col)
-    return data[idx]
-
-
-def by2author(story: dict):
-    if "by" in story:
-        story["author"] = story["by"]
-        del story["by"]
-
-
 def get_batches(data_tuples: list, batch_size: int = 10):
     generator = (
         data_tuples[i : i + batch_size] for i in range(0, len(data_tuples), batch_size)
     )
     return generator
-
-
-def commit_snapshot(data: Union[list, dict], snapshot_name: str):
-    with open(
-        Path(__file__).parents[1] / "snapshots" / (snapshot_name + ".json"), "w"
-    ) as fp:
-        json.dump(data, fp)
-
-    print(f"Snapshot {snapshot_name} successfully commited.")
-
-
-def load_snapshot(snapshot_name: str) -> list[dict]:
-    with open(
-        Path(__file__).parents[1] / "snapshots" / (snapshot_name + ".json")
-    ) as fp:
-        data = json.load(fp)
-    return data
 
 
 def insert_data(
@@ -112,3 +70,36 @@ def insert_data(
             cursor.execute(create_table_stmt)
         for batch in batches:
             cursor.executemany(insert_stmt, batch)
+
+
+def search_by_title(title: str):
+    hn_api = HackerNewsAPI()
+    topstories = hn_api.fetch_topstories()
+    for story_id in topstories:
+        story = hn_api.fetch_item(story_id)
+        if "title" in story:
+            if title in story["title"]:
+                return story_id
+
+
+def run_pipeline_by_id(story_id: int):
+    # fetch HN story
+    hn_api = HackerNewsAPI()
+    story = hn_api.fetch_item(story_id)
+    if story["type"] != "story":
+        print("Error! Item is not story.")
+        return
+    insert_data([story], Tables.stories)
+
+    # fetch article text
+    resp = requests.get(story["url"], timeout=5)
+    resp.raise_for_status()
+    story["text"] = resp.text
+    # insert_data([story], Tables.stories_text)
+
+    # chunk and embed
+    client = AIClient(
+        gpt_model="gpt-3.5-turbo-0125", embedding_model="text-embedding-3-small"
+    )
+    story_chunk_embedding = chunk_and_embed(client, story)
+    insert_data(story_chunk_embedding, Tables.stories_chunk)
