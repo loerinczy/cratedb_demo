@@ -30,7 +30,6 @@ headers_to_split_on = [
 chunk_size = 300
 chunk_overlap = 30
 
-# hn_api = HackerNewsAPI()
 story_ids = [40453882]
 hackernews_url = "https://hacker-news.firebaseio.com/v0/item/{}"
 stories = [
