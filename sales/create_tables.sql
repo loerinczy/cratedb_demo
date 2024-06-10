@@ -17,7 +17,8 @@ insert into sales.distribution_hubs values ('Salzburg', [13.041514, 47.805990], 
 insert into sales.distribution_hubs values ('Innsbruck', [11.408526, 47.265203], {type='Polygon', coordinates=[[[11.832892, 47.408344], [11.088454, 46.887962], [10.315724, 47.133737], [11.304621, 47.424782], [11.832892, 47.408344]]]});
 
 
-create table sales_dev.reviews as select event_id, review, review_date, longitude, latitude from sales_dev.purchases_with_reviews where review is not null;
+create table sales_dev.reviews as select event_id, review, review_date from sales_dev.purchases_with_reviews where review is not null;
+create table sales_dev.purchases as select event_id, platform, sales, purchase_date, items, traffic_source, user_id, longitude, latitude from temp.purchases_with_reviews;
 
 -- testing
 create table sales_dev.delivery as select * from (select [lng, lat]::geo_point as coord, reviews as review, _score from maps.random_reviews where match(reviews, 'slow delivery')) as delivery where _score >= 1;

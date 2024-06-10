@@ -4,7 +4,7 @@ select
         select count(*)
         from {{ ref('faulty_products') }}
         where within(coord, shape)
-    ) as within_area,
+    ) as within_shape,
     (
         select count(*)
         from {{ ref('faulty_products') }}
